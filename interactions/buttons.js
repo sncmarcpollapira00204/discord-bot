@@ -8,11 +8,20 @@ const {
 
 const config = require("../config.json");
 
-/* ---------- ADMIN HELPER ---------- */
-const isAdmin = (member) =>
-  member.roles.cache.some(role =>
+/* =======================================================
+   ADMIN HELPER (CACHE-SAFE + OWNER BYPASS)
+   ======================================================= */
+const isAdmin = async (interaction) => {
+  // Server owner always allowed
+  if (interaction.guild.ownerId === interaction.user.id) return true;
+
+  // Always fetch full member (fixes cache issues)
+  const member = await interaction.guild.members.fetch(interaction.user.id);
+
+  return member.roles.cache.some(role =>
     config.adminRoleIds.includes(role.id)
   );
+};
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
@@ -79,11 +88,11 @@ module.exports = async (interaction) => {
   }
 
   /* =======================================================
-     APPROVE (MULTI-ADMIN FIXED)
+     APPROVE (FIXED)
      ======================================================= */
   if (interaction.customId === "approve") {
 
-    if (!isAdmin(interaction.member)) {
+    if (!(await isAdmin(interaction))) {
       return interaction.reply({
         content: "❌ You do not have permission to approve.",
         ephemeral: true
@@ -128,11 +137,11 @@ module.exports = async (interaction) => {
   }
 
   /* =======================================================
-     DENY (MULTI-ADMIN FIXED)
+     DENY (FIXED)
      ======================================================= */
   if (interaction.customId === "deny") {
 
-    if (!isAdmin(interaction.member)) {
+    if (!(await isAdmin(interaction))) {
       return interaction.reply({
         content: "❌ You do not have permission to deny.",
         ephemeral: true

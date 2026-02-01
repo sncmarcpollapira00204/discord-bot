@@ -10,17 +10,27 @@ const {
   Events
 } = require("discord.js");
 
+/* =======================================================
+   CLIENT SETUP (INTENTS FIXED)
+   ======================================================= */
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds]
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,     // ✅ REQUIRED for role checks
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent
+  ]
 });
 
-/* -------- INTERACTION HANDLERS -------- */
-
+/* =======================================================
+   INTERACTION HANDLERS
+   ======================================================= */
 const handleModals = require("./interactions/modals");
 const handleButtons = require("./interactions/buttons");
 
-/* -------- COMMAND HANDLER -------- */
-
+/* =======================================================
+   COMMAND HANDLER
+   ======================================================= */
 client.commands = new Collection();
 
 const commandsPath = path.join(__dirname, "commands");
@@ -37,39 +47,50 @@ for (const file of commandFiles) {
   }
 }
 
-/* -------- READY -------- */
-
+/* =======================================================
+   READY EVENT
+   ======================================================= */
 client.once(Events.ClientReady, () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-/* -------- INTERACTIONS -------- */
-
+/* =======================================================
+   INTERACTION ROUTER
+   ======================================================= */
 client.on(Events.InteractionCreate, async interaction => {
-  if (interaction.isChatInputCommand()) {
-    const command = client.commands.get(interaction.commandName);
-    if (!command) return;
+  try {
+    if (interaction.isChatInputCommand()) {
+      const command = client.commands.get(interaction.commandName);
+      if (!command) return;
 
-    try {
       await command.execute(interaction);
-    } catch (error) {
-      console.error(error);
+    }
+
+    if (interaction.isModalSubmit()) {
+      await handleModals(interaction);
+    }
+
+    if (interaction.isButton()) {
+      await handleButtons(interaction);
+    }
+  } catch (error) {
+    console.error("❌ Interaction error:", error);
+
+    if (interaction.replied || interaction.deferred) {
+      await interaction.followUp({
+        content: "❌ An error occurred.",
+        ephemeral: true
+      });
+    } else {
       await interaction.reply({
-        content: "❌ Error executing command.",
+        content: "❌ An error occurred.",
         ephemeral: true
       });
     }
   }
-
-  if (interaction.isModalSubmit()) {
-    await handleModals(interaction);
-  }
-
-  if (interaction.isButton()) {
-    await handleButtons(interaction);
-  }
 });
 
-/* -------- LOGIN -------- */
-
+/* =======================================================
+   LOGIN
+   ======================================================= */
 client.login(process.env.TOKEN);
