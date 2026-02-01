@@ -24,19 +24,21 @@ module.exports = {
     /* ===============================
        COOLDOWN CHECK
        =============================== */
-    if (cooldowns.has(userId)) {
-      const lastUsed = cooldowns.get(userId);
+    const lastUsed = cooldowns.get(userId);
+
+    if (lastUsed) {
       const remaining = COOLDOWN_TIME - (now - lastUsed);
 
       if (remaining > 0) {
         const minutes = Math.ceil(remaining / 60000);
         return interaction.reply({
           content: `⏳ Please wait **${minutes} minute(s)** before submitting again.`,
-          ephemeral: true
+          flags: 64 // ephemeral
         });
       }
     }
 
+    // Start cooldown when modal opens
     cooldowns.set(userId, now);
 
     /* ===============================
@@ -58,9 +60,17 @@ module.exports = {
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
+    const steamProfile = new TextInputBuilder()
+      .setCustomId("steam_profile")
+      .setLabel("Steam Profile URL")
+      .setPlaceholder("https://steamcommunity.com/id/yourname")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
     modal.addComponents(
       new ActionRowBuilder().addComponents(characterName),
-      new ActionRowBuilder().addComponents(age)
+      new ActionRowBuilder().addComponents(age),
+      new ActionRowBuilder().addComponents(steamProfile)
     );
 
     await interaction.showModal(modal);

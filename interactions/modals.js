@@ -10,29 +10,36 @@ const config = require("../config.json");
 module.exports = async (interaction) => {
   if (!interaction.isModalSubmit()) return;
 
-  /* =======================================================
-     WHITELIST SUBMIT MODAL
-     ======================================================= */
-  if (interaction.customId === "whitelist_submit") {
+/* =======================================================
+   WHITELIST SUBMIT MODAL
+   ======================================================= */
+if (interaction.customId === "whitelist_submit") {
 
-    const characterName =
-      interaction.fields.getTextInputValue("character_name");
-    const age =
-      interaction.fields.getTextInputValue("age");
-      const vouchedBy = "None";
+  /* ---------- FORM INPUTS ---------- */
+  const characterName =
+    interaction.fields.getTextInputValue("character_name");
 
-    /* ---------- ACCOUNT AGE ---------- */
-    const createdAt = interaction.user.createdAt;
-    const now = new Date();
+  const age =
+    interaction.fields.getTextInputValue("age");
 
-    const diffMs = now - createdAt;
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    const diffYears = Math.floor(diffDays / 365);
-    const diffMonths = Math.floor((diffDays % 365) / 30);
+  const steamProfile =
+    interaction.fields.getTextInputValue("steam_profile");
 
-    const accountAge = `${diffYears} year(s), ${diffMonths} month(s)`;
+  const vouchedBy = "None";
 
-    /* ---------- EMBED ---------- */
+  /* ---------- ACCOUNT AGE ---------- */
+  const createdAt = interaction.user.createdAt;
+  const now = new Date();
+
+  const diffMs = now - createdAt;
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  const diffYears = Math.floor(diffDays / 365);
+  const diffMonths = Math.floor((diffDays % 365) / 30);
+
+  const accountAge = `${diffYears} year(s), ${diffMonths} month(s)`;
+
+
+/* ---------- EMBED ---------- */
 const SPACER = "\u200B";
 
 const embed = new EmbedBuilder()
@@ -73,6 +80,16 @@ const embed = new EmbedBuilder()
   // Spacer
   .addFields({ name: SPACER, value: SPACER })
 
+  // ───────────── STEAM PROFILE (FULL WIDTH) ─────────────
+  .addFields({
+    name: "🔗 Steam Profile",
+    value: `[View Profile](${steamProfile})`,
+    inline: false
+  })
+
+  // Spacer
+  .addFields({ name: SPACER, value: SPACER })
+
   // ───────────── ROW 3 ─────────────
   .addFields(
     {
@@ -87,7 +104,7 @@ const embed = new EmbedBuilder()
     }
   )
 
-  // Bottom spacing before staff actions
+  // Bottom spacing
   .addFields({ name: SPACER, value: SPACER })
 
   // Right-side avatar
@@ -102,24 +119,26 @@ const embed = new EmbedBuilder()
   .setFooter({ text: "Poblacion City Roleplay" })
   .setTimestamp();
 
-
-
-
     /* ---------- BUTTONS ---------- */
-    const buttons = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId("vouch")
-        .setLabel("Vouch")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId("approve")
-        .setLabel("Approve")
-        .setStyle(ButtonStyle.Success),
-      new ButtonBuilder()
-        .setCustomId("deny")
-        .setLabel("Deny")
-        .setStyle(ButtonStyle.Danger)
-    );
+const buttons = new ActionRowBuilder().addComponents(
+  new ButtonBuilder()
+    .setCustomId("vouch")
+    .setLabel("Vouch")
+    .setEmoji("🖐️")
+    .setStyle(ButtonStyle.Primary),
+
+  new ButtonBuilder()
+    .setCustomId("approve")
+    .setLabel("Approve")
+    .setEmoji("✅")
+    .setStyle(ButtonStyle.Success),
+
+  new ButtonBuilder()
+    .setCustomId("deny")
+    .setLabel("Deny")
+    .setEmoji("✖️")
+    .setStyle(ButtonStyle.Danger)
+);
 
     const channel = interaction.client.channels.cache.get(
       config.whitelistChannelId

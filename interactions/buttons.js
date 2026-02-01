@@ -19,46 +19,68 @@ module.exports = async (interaction) => {
     embed.data.fields.find(f => f.name.includes(name));
 
   /* ---------- VOUCH ---------- */
-  if (interaction.customId === "vouch") {
+/* ---------- VOUCH (TOGGLE) ---------- */
+if (interaction.customId === "vouch") {
 
-    // Citizen role check
-    if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
-      return interaction.reply({
-        content: "❌ You don't have Citizen Role",
-        flags: 64
-      });
-    }
-
-    const vouchField = getField("Vouched By");
-    if (!vouchField) {
-      return interaction.reply({
-        content: "❌ Vouch field missing.",
-        flags: 64
-      });
-    }
-
-    const voucher = interaction.user.toString();
-    let currentVouches = vouchField.value;
-
-    if (currentVouches.includes(voucher)) {
-      return interaction.reply({
-        content: "❌ You already vouched this user.",
-        flags: 64
-      });
-    }
-
-    vouchField.value =
-      currentVouches === "None"
-        ? voucher
-        : `${currentVouches}, ${voucher}`;
-
-    await message.edit({ embeds: [embed] });
-
+  // Citizen role check
+  if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
     return interaction.reply({
-      content: "✅ Vouched successfully.",
+      content: "❌ Only Citizens can vouch.",
       flags: 64
     });
   }
+
+  const statusField = embed.data.fields.find(f =>
+    f.name.includes("Status")
+  );
+
+  if (!statusField || !statusField.value.includes("Pending")) {
+    return interaction.reply({
+      content: "❌ You can only vouch while the application is pending.",
+      flags: 64
+    });
+  }
+
+  const vouchField = embed.data.fields.find(f =>
+    f.name.includes("Vouched By")
+  );
+
+  if (!vouchField) {
+    return interaction.reply({
+      content: "❌ Vouch field missing.",
+      flags: 64
+    });
+  }
+
+  const voucher = interaction.user.toString();
+
+  // Normalize vouches into array
+  let vouches =
+    vouchField.value === "None"
+      ? []
+      : vouchField.value.split(", ").filter(Boolean);
+
+  // TOGGLE LOGIC
+  if (vouches.includes(voucher)) {
+    // REMOVE VOUCH
+    vouches = vouches.filter(v => v !== voucher);
+  } else {
+    // ADD VOUCH
+    vouches.push(voucher);
+  }
+
+  // Update field
+  vouchField.value = vouches.length ? vouches.join(", ") : "None";
+
+  await message.edit({ embeds: [embed] });
+
+  return interaction.reply({
+    content: vouches.includes(voucher)
+      ? "🖐️ You vouched this application."
+      : "↩️ Your vouch has been removed.",
+    flags: 64
+  });
+}
 
   /* ---------- APPROVE ---------- */
   if (interaction.customId === "approve") {
