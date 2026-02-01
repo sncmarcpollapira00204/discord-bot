@@ -6,12 +6,42 @@ const {
   ActionRowBuilder
 } = require("discord.js");
 
+/* ===============================
+   COOLDOWN SETUP
+   =============================== */
+const cooldowns = new Map();
+const COOLDOWN_TIME = 10 * 60 * 1000; // 10 minutes
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("submit")
     .setDescription("Submit a whitelist application"),
 
   async execute(interaction) {
+    const userId = interaction.user.id;
+    const now = Date.now();
+
+    /* ===============================
+       COOLDOWN CHECK
+       =============================== */
+    if (cooldowns.has(userId)) {
+      const lastUsed = cooldowns.get(userId);
+      const remaining = COOLDOWN_TIME - (now - lastUsed);
+
+      if (remaining > 0) {
+        const minutes = Math.ceil(remaining / 60000);
+        return interaction.reply({
+          content: `⏳ Please wait **${minutes} minute(s)** before submitting again.`,
+          ephemeral: true
+        });
+      }
+    }
+
+    cooldowns.set(userId, now);
+
+    /* ===============================
+       MODAL
+       =============================== */
     const modal = new ModalBuilder()
       .setCustomId("whitelist_submit")
       .setTitle("Whitelist Application");
@@ -28,19 +58,11 @@ module.exports = {
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
-    const vouchedBy = new TextInputBuilder()
-      .setCustomId("vouched_by")
-      .setLabel("Vouched By (optional)")
-      .setStyle(TextInputStyle.Short)
-      .setRequired(false);
-
     modal.addComponents(
       new ActionRowBuilder().addComponents(characterName),
-      new ActionRowBuilder().addComponents(age),
-      new ActionRowBuilder().addComponents(vouchedBy)
+      new ActionRowBuilder().addComponents(age)
     );
 
     await interaction.showModal(modal);
   }
 };
-

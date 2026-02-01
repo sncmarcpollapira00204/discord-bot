@@ -1,4 +1,11 @@
-const { EmbedBuilder } = require("discord.js");
+const {
+  EmbedBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  ActionRowBuilder
+} = require("discord.js");
+
 const config = require("../config.json");
 
 module.exports = async (interaction) => {
@@ -7,43 +14,49 @@ module.exports = async (interaction) => {
   const message = interaction.message;
   const embed = EmbedBuilder.from(message.embeds[0]);
 
+  /* ---------- HELPERS ---------- */
+  const getField = (name) =>
+    embed.data.fields.find(f => f.name.includes(name));
+
   /* ---------- VOUCH ---------- */
   if (interaction.customId === "vouch") {
 
     // Citizen role check
     if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
       return interaction.reply({
-        content: "❌ Depungol ka wala kang Citizen",
-        ephemeral: true
+        content: "❌ You don't have Citizen Role",
+        flags: 64
       });
     }
 
-    const fieldIndex = embed.data.fields.findIndex(
-      f => f.name === "Vouched By"
-    );
+    const vouchField = getField("Vouched By");
+    if (!vouchField) {
+      return interaction.reply({
+        content: "❌ Vouch field missing.",
+        flags: 64
+      });
+    }
 
-    let currentVouches = embed.data.fields[fieldIndex].value;
     const voucher = interaction.user.toString();
+    let currentVouches = vouchField.value;
 
     if (currentVouches.includes(voucher)) {
       return interaction.reply({
-        content: "❌ You already vouched.",
-        ephemeral: true
+        content: "❌ You already vouched this user.",
+        flags: 64
       });
     }
 
-    currentVouches =
+    vouchField.value =
       currentVouches === "None"
         ? voucher
         : `${currentVouches}, ${voucher}`;
-
-    embed.data.fields[fieldIndex].value = currentVouches;
 
     await message.edit({ embeds: [embed] });
 
     return interaction.reply({
       content: "✅ Vouched successfully.",
-      ephemeral: true
+      flags: 64
     });
   }
 
@@ -54,66 +67,76 @@ module.exports = async (interaction) => {
     if (!interaction.member.roles.cache.has(config.adminRoleId)) {
       return interaction.reply({
         content: "❌ You do not have permission to approve.",
-        ephemeral: true
+        flags: 64
+      });
+    }
+
+    const applicantField = getField("Applicant");
+    const statusField = getField("Status");
+    const characterField = getField("Character Name");
+
+    if (!applicantField || !statusField) {
+      return interaction.reply({
+        content: "❌ Application data corrupted.",
+        flags: 64
       });
     }
 
     // Update status
-    const statusIndex = embed.data.fields.findIndex(
-      f => f.name === "Status"
-    );
+    statusField.value = "✅ Approved";
 
-    embed.data.fields[statusIndex].value = "✅ Approved";
+    // Approved by
+    embed.addFields({
+      name: "Approved By",
+      value: `${interaction.user}`
+    });
 
     await message.edit({
       embeds: [embed],
       components: []
     });
 
-    // Give citizen role
-    const applicantId = embed.data.fields[0].value.match(/\d+/)[0];
+    // Give citizen role + nickname
+    const applicantId = applicantField.value.match(/\d+/)[0];
     const member = await interaction.guild.members.fetch(applicantId);
 
     await member.roles.add(config.citizenRoleId);
 
+    if (characterField) {
+      await member.setNickname(characterField.value).catch(() => {});
+    }
+
     return interaction.reply({
       content: "✅ Application approved.",
-      ephemeral: true
-    });
-  }
-/* ---------- DENY ---------- */
-if (interaction.customId === "deny") {
-
-  // Admin role check
-  if (!interaction.member.roles.cache.has(config.adminRoleId)) {
-    return interaction.reply({
-      content: "❌ You do not have permission to deny.",
-      ephemeral: true
+      flags: 64
     });
   }
 
-  const {
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder
-  } = require("discord.js");
+  /* ---------- DENY ---------- */
+  if (interaction.customId === "deny") {
 
-  const modal = new ModalBuilder()
-    // 🔑 PASS MESSAGE ID INTO MODAL
-    .setCustomId(`deny_reason_modal:${interaction.message.id}`)
-    .setTitle("Deny Application");
+    // Admin role check
+    if (!interaction.member.roles.cache.has(config.adminRoleId)) {
+      return interaction.reply({
+        content: "❌ You do not have permission to deny.",
+        flags: 64
+      });
+    }
 
-  const reasonInput = new TextInputBuilder()
-    .setCustomId("deny_reason")
-    .setLabel("Reason for denial")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
+    const modal = new ModalBuilder()
+      .setCustomId(`deny_reason_modal:${interaction.message.id}`)
+      .setTitle("Deny Application");
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(reasonInput)
-  );
+    const reasonInput = new TextInputBuilder()
+      .setCustomId("deny_reason")
+      .setLabel("Reason for denial")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
 
-  return interaction.showModal(modal);
-}
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(reasonInput)
+    );
+
+    return interaction.showModal(modal);
+  }
 };
