@@ -6,6 +6,8 @@ const {
   ActionRowBuilder
 } = require("discord.js");
 
+const config = require("../config.json");
+
 /* ===============================
    COOLDOWN SETUP
    =============================== */
@@ -18,27 +20,36 @@ module.exports = {
     .setDescription("Submit a whitelist application"),
 
   async execute(interaction) {
+
+    /* ===============================
+       BLOCK CITIZENS FROM APPLYING
+       =============================== */
+    if (interaction.member.roles.cache.has(config.citizenRoleId)) {
+      return interaction.reply({
+        content: "❌ You are already a **Citizen** and cannot submit another application.",
+        flags: 64
+      });
+    }
+
     const userId = interaction.user.id;
     const now = Date.now();
 
     /* ===============================
        COOLDOWN CHECK
        =============================== */
-    const lastUsed = cooldowns.get(userId);
-
-    if (lastUsed) {
+    if (cooldowns.has(userId)) {
+      const lastUsed = cooldowns.get(userId);
       const remaining = COOLDOWN_TIME - (now - lastUsed);
 
       if (remaining > 0) {
         const minutes = Math.ceil(remaining / 60000);
         return interaction.reply({
           content: `⏳ Please wait **${minutes} minute(s)** before submitting again.`,
-          flags: 64 // ephemeral
+          flags: 64
         });
       }
     }
 
-    // Start cooldown when modal opens
     cooldowns.set(userId, now);
 
     /* ===============================
