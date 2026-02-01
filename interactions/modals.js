@@ -16,14 +16,9 @@ module.exports = async (interaction) => {
 if (interaction.customId === "whitelist_submit") {
 
   /* ---------- FORM INPUTS ---------- */
-  const characterName =
-    interaction.fields.getTextInputValue("character_name");
-
-  const age =
-    interaction.fields.getTextInputValue("age");
-
-  const steamProfile =
-    interaction.fields.getTextInputValue("steam_profile");
+  const characterName = interaction.fields.getTextInputValue("character_name");
+  const age = interaction.fields.getTextInputValue("age");
+  const steamProfile = interaction.fields.getTextInputValue("steam_profile");
 
   const vouchedBy = "None";
 
@@ -38,180 +33,138 @@ if (interaction.customId === "whitelist_submit") {
 
   const accountAge = `${diffYears} year(s), ${diffMonths} month(s)`;
 
+  /* ---------- EMBED ---------- */
+  const SPACER = "\u200B";
 
-/* ---------- EMBED ---------- */
-const SPACER = "\u200B";
+  const embed = new EmbedBuilder()
+    .setTitle("📄 New Whitelist Application")
+    .setColor("Orange")
 
-const embed = new EmbedBuilder()
-  .setTitle("📄 New Whitelist Application")
-  .setColor("Orange")
+    .addFields(
+      { name: "👤 Applicant", value: `${interaction.user}`, inline: true },
+      { name: "📌 Account Age", value: accountAge, inline: true }
+    )
 
-  // ───────────── ROW 1 ─────────────
-  .addFields(
-    {
-      name: "👤 Applicant",
-      value: `${interaction.user}`,
-      inline: true
-    },
-    {
-      name: "📌 Account Age",
-      value: accountAge,
-      inline: true
-    }
-  )
+    .addFields({ name: SPACER, value: SPACER })
 
-  // Spacer
-  .addFields({ name: SPACER, value: SPACER })
+    .addFields(
+      { name: "👤 Character Name", value: characterName, inline: true },
+      { name: "🎂 Age", value: age, inline: true }
+    )
 
-  // ───────────── ROW 2 ─────────────
-  .addFields(
-    {
-      name: "👤 Character Name",
-      value: characterName,
-      inline: true
-    },
-    {
-      name: "🎂 Age",
-      value: age,
-      inline: true
-    }
-  )
+    .addFields({ name: SPACER, value: SPACER })
 
-  // Spacer
-  .addFields({ name: SPACER, value: SPACER })
-
-  // ───────────── STEAM PROFILE (FULL WIDTH) ─────────────
-  .addFields({
-    name: "🔗 Steam Profile",
-    value: `[View Profile](${steamProfile})`,
-    inline: false
-  })
-
-  // Spacer
-  .addFields({ name: SPACER, value: SPACER })
-
-  // ───────────── ROW 3 ─────────────
-  .addFields(
-    {
-      name: "👥 Vouched By",
-      value: vouchedBy,
-      inline: true
-    },
-    {
-      name: "📊 Status",
-      value: "⏳ Pending",
-      inline: true
-    }
-  )
-
-  // Bottom spacing
-  .addFields({ name: SPACER, value: SPACER })
-
-  // Right-side avatar
-  .setThumbnail(
-    interaction.user.displayAvatarURL({
-      dynamic: true,
-      size: 256
+    .addFields({
+      name: "🔗 Steam Profile",
+      value: `[View Profile](${steamProfile})`
     })
-  )
 
-  // Footer + time
-  .setFooter({ text: "Poblacion City Roleplay" })
-  .setTimestamp();
+    .addFields({ name: SPACER, value: SPACER })
 
-    /* ---------- BUTTONS ---------- */
-const buttons = new ActionRowBuilder().addComponents(
-  new ButtonBuilder()
-    .setCustomId("vouch")
-    .setLabel("Vouch")
-    .setEmoji("🖐️")
-    .setStyle(ButtonStyle.Primary),
+    .addFields(
+      { name: "👥 Vouched By", value: vouchedBy, inline: true },
+      { name: "📊 Status", value: "⏳ Pending", inline: true }
+    )
 
-  new ButtonBuilder()
-    .setCustomId("approve")
-    .setLabel("Approve")
-    .setEmoji("✅")
-    .setStyle(ButtonStyle.Success),
+    .addFields({ name: SPACER, value: SPACER })
 
-  new ButtonBuilder()
-    .setCustomId("deny")
-    .setLabel("Deny")
-    .setEmoji("✖️")
-    .setStyle(ButtonStyle.Danger)
-);
+    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 256 }))
+    .setFooter({ text: "Poblacion City Roleplay" })
+    .setTimestamp();
 
-    const channel = interaction.client.channels.cache.get(
-      config.whitelistChannelId
-    );
+  const buttons = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId("vouch")
+      .setLabel("Vouch")
+      .setEmoji("🖐️")
+      .setStyle(ButtonStyle.Primary),
 
-    if (!channel) {
-      return interaction.reply({
-        content: "❌ Whitelist channel not found.",
-        flags: 64
-      });
-    }
+    new ButtonBuilder()
+      .setCustomId("approve")
+      .setLabel("Approve")
+      .setEmoji("✅")
+      .setStyle(ButtonStyle.Success),
 
-    await channel.send({
-      embeds: [embed],
-      components: [buttons]
-    });
+    new ButtonBuilder()
+      .setCustomId("deny")
+      .setLabel("Deny")
+      .setEmoji("✖️")
+      .setStyle(ButtonStyle.Danger)
+  );
 
+  const channel = interaction.client.channels.cache.get(
+    config.whitelistChannelId
+  );
+
+  if (!channel) {
     return interaction.reply({
-      content: "✅ Your application has been submitted!",
-      flags: 64
+      content: "❌ Whitelist channel not found.",
+      ephemeral: true
     });
   }
 
-  /* =======================================================
-     DENY MODAL (PLAIN TEXT – NO DMs)
-     ======================================================= */
-  if (interaction.customId.startsWith("deny_reason_modal:")) {
+  await channel.send({
+    embeds: [embed],
+    components: [buttons]
+  });
 
-    const reason = interaction.fields.getTextInputValue("deny_reason");
-    const messageId = interaction.customId.split(":")[1];
+  return interaction.reply({
+    content: "✅ Your application has been submitted!",
+    ephemeral: true
+  });
+}
 
-    const channel = interaction.channel;
-    const message = await channel.messages.fetch(messageId).catch(() => null);
+/* =======================================================
+   DENY MODAL
+   ======================================================= */
+if (interaction.customId.startsWith("deny_reason_modal:")) {
 
-    if (!message || !message.embeds.length) {
-      return interaction.reply({
-        content: "❌ Application message not found.",
-        flags: 64
-      });
-    }
+  const reason = interaction.fields.getTextInputValue("deny_reason");
+  const messageId = interaction.customId.split(":")[1];
 
-    const embed = EmbedBuilder.from(message.embeds[0]);
+  const message = await interaction.channel.messages
+    .fetch(messageId)
+    .catch(() => null);
 
-    const statusField = embed.data.fields.find(
-      f => f.name.includes("Status")
-    );
-
-    if (!statusField) {
-      return interaction.reply({
-        content: "❌ Application data corrupted.",
-        flags: 64
-      });
-    }
-
-    statusField.value = "❌ Denied";
-
-    embed.addFields(
-      { name: "Denied By", value: `${interaction.user}` },
-      { name: "Denial Reason", value: reason }
-    );
-
-    await message.edit({
-      embeds: [embed],
-      components: []
-    });
-
-    await message.reply(
-      `❌ Application denied.\nReason: ${reason}`
-    );
-
+  if (!message || !message.embeds.length) {
     return interaction.reply({
-      content: "❌ Application denied.",
-      flags: 64
+      content: "❌ Application message not found.",
+      ephemeral: true
     });
   }
+
+  const embed = EmbedBuilder.from(message.embeds[0]);
+
+  const statusField = embed.data.fields.find(
+    f => f.name.includes("Status")
+  );
+
+  if (!statusField) {
+    return interaction.reply({
+      content: "❌ Application data corrupted.",
+      ephemeral: true
+    });
+  }
+
+  statusField.value = "❌ Denied";
+
+  embed.addFields(
+    { name: "Denied By", value: `${interaction.user}` },
+    { name: "Denial Reason", value: reason }
+  );
+
+  await message.edit({
+    embeds: [embed],
+    components: []
+  });
+
+  await message.reply(
+    `❌ Application denied.\nReason: ${reason}`
+  );
+
+  return interaction.reply({
+    content: "❌ Application denied.",
+    ephemeral: true
+  });
+}
 };

@@ -8,6 +8,12 @@ const {
 
 const config = require("../config.json");
 
+/* ---------- ADMIN HELPER ---------- */
+const isAdmin = (member) =>
+  member.roles.cache.some(role =>
+    config.adminRoleIds.includes(role.id)
+  );
+
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
@@ -18,96 +24,84 @@ module.exports = async (interaction) => {
   const getField = (name) =>
     embed.data.fields.find(f => f.name.includes(name));
 
-  /* ---------- VOUCH ---------- */
-/* ---------- VOUCH (TOGGLE) ---------- */
-if (interaction.customId === "vouch") {
+  const statusField = getField("Status");
 
-  // Citizen role check
-  if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
+  /* =======================================================
+     VOUCH (TOGGLE)
+     ======================================================= */
+  if (interaction.customId === "vouch") {
+
+    if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
+      return interaction.reply({
+        content: "❌ Only Citizens can vouch.",
+        ephemeral: true
+      });
+    }
+
+    if (!statusField || !statusField.value.includes("Pending")) {
+      return interaction.reply({
+        content: "❌ You can only vouch while the application is pending.",
+        ephemeral: true
+      });
+    }
+
+    const vouchField = getField("Vouched By");
+    if (!vouchField) {
+      return interaction.reply({
+        content: "❌ Vouch field missing.",
+        ephemeral: true
+      });
+    }
+
+    const voucher = interaction.user.toString();
+
+    let vouches =
+      vouchField.value === "None"
+        ? []
+        : vouchField.value.split(", ").filter(Boolean);
+
+    if (vouches.includes(voucher)) {
+      vouches = vouches.filter(v => v !== voucher);
+    } else {
+      vouches.push(voucher);
+    }
+
+    vouchField.value = vouches.length ? vouches.join(", ") : "None";
+
+    await message.edit({ embeds: [embed] });
+
     return interaction.reply({
-      content: "❌ Only Citizens can vouch.",
-      flags: 64
+      content: vouches.includes(voucher)
+        ? "🖐️ You vouched this application."
+        : "↩️ Your vouch has been removed.",
+      ephemeral: true
     });
   }
 
-  const statusField = embed.data.fields.find(f =>
-    f.name.includes("Status")
-  );
-
-  if (!statusField || !statusField.value.includes("Pending")) {
-    return interaction.reply({
-      content: "❌ You can only vouch while the application is pending.",
-      flags: 64
-    });
-  }
-
-  const vouchField = embed.data.fields.find(f =>
-    f.name.includes("Vouched By")
-  );
-
-  if (!vouchField) {
-    return interaction.reply({
-      content: "❌ Vouch field missing.",
-      flags: 64
-    });
-  }
-
-  const voucher = interaction.user.toString();
-
-  // Normalize vouches into array
-  let vouches =
-    vouchField.value === "None"
-      ? []
-      : vouchField.value.split(", ").filter(Boolean);
-
-  // TOGGLE LOGIC
-  if (vouches.includes(voucher)) {
-    // REMOVE VOUCH
-    vouches = vouches.filter(v => v !== voucher);
-  } else {
-    // ADD VOUCH
-    vouches.push(voucher);
-  }
-
-  // Update field
-  vouchField.value = vouches.length ? vouches.join(", ") : "None";
-
-  await message.edit({ embeds: [embed] });
-
-  return interaction.reply({
-    content: vouches.includes(voucher)
-      ? "🖐️ You vouched this application."
-      : "↩️ Your vouch has been removed.",
-    flags: 64
-  });
-}
-
-  /* ---------- APPROVE ---------- */
+  /* =======================================================
+     APPROVE (MULTI-ADMIN FIXED)
+     ======================================================= */
   if (interaction.customId === "approve") {
 
-    // Admin role check
-    if (!interaction.member.roles.cache.has(config.adminRoleId)) {
+    if (!isAdmin(interaction.member)) {
       return interaction.reply({
         content: "❌ You do not have permission to approve.",
-        flags: 64
+        ephemeral: true
       });
     }
 
     const applicantField = getField("Applicant");
-    const statusField = getField("Status");
     const characterField = getField("Character Name");
 
     if (!applicantField || !statusField) {
       return interaction.reply({
         content: "❌ Application data corrupted.",
-        flags: 64
+        ephemeral: true
       });
     }
 
-    // Update status
     statusField.value = "✅ Approved";
 
-    // Approved by
     embed.addFields({
       name: "Approved By",
       value: `${interaction.user}`
@@ -118,7 +112,6 @@ if (interaction.customId === "vouch") {
       components: []
     });
 
-    // Give citizen role + nickname
     const applicantId = applicantField.value.match(/\d+/)[0];
     const member = await interaction.guild.members.fetch(applicantId);
 
@@ -130,23 +123,24 @@ if (interaction.customId === "vouch") {
 
     return interaction.reply({
       content: "✅ Application approved.",
-      flags: 64
+      ephemeral: true
     });
   }
 
-  /* ---------- DENY ---------- */
+  /* =======================================================
+     DENY (MULTI-ADMIN FIXED)
+     ======================================================= */
   if (interaction.customId === "deny") {
 
-    // Admin role check
-    if (!interaction.member.roles.cache.has(config.adminRoleId)) {
+    if (!isAdmin(interaction.member)) {
       return interaction.reply({
         content: "❌ You do not have permission to deny.",
-        flags: 64
+        ephemeral: true
       });
     }
 
     const modal = new ModalBuilder()
-      .setCustomId(`deny_reason_modal:${interaction.message.id}`)
+      .setCustomId(`deny_reason_modal:${message.id}`)
       .setTitle("Deny Application");
 
     const reasonInput = new TextInputBuilder()

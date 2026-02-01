@@ -12,7 +12,7 @@ const config = require("../config.json");
    COOLDOWN SETUP
    =============================== */
 const cooldowns = new Map();
-const COOLDOWN_TIME = 10 * 60 * 1000; // 10 minutes
+const COOLDOWN_TIME = 10 * 60 * 1000; // 0 minutes
 
 module.exports = {
   data: new SlashCommandBuilder()
