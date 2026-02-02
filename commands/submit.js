@@ -1,7 +1,3 @@
-// Whitelist System
-// Project: Poblacion City Roleplay
-// 02.01.2026
-
 const {
   SlashCommandBuilder,
   ModalBuilder,
@@ -12,9 +8,11 @@ const {
 
 const config = require("../config.json");
 
-// Application Cooldown
+/* ===============================
+   COOLDOWN SETUP
+   =============================== */
 const cooldowns = new Map();
-const COOLDOWN_TIME = 0 * 0 * 0; // 10 minutes
+const COOLDOWN_TIME = 10 * 60 * 1000; // 0 minutes
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -23,7 +21,9 @@ module.exports = {
 
   async execute(interaction) {
 
-// Already Citizen
+    /* ===============================
+       BLOCK CITIZENS FROM APPLYING
+       =============================== */
     if (interaction.member.roles.cache.has(config.citizenRoleId)) {
       return interaction.reply({
         content: "❌ You are already a **Citizen** and cannot submit another application.",
@@ -34,7 +34,9 @@ module.exports = {
     const userId = interaction.user.id;
     const now = Date.now();
 
-// Whitelist application Cooldown
+    /* ===============================
+       COOLDOWN CHECK
+       =============================== */
     if (cooldowns.has(userId)) {
       const lastUsed = cooldowns.get(userId);
       const remaining = COOLDOWN_TIME - (now - lastUsed);
@@ -50,7 +52,9 @@ module.exports = {
 
     cooldowns.set(userId, now);
 
-// Main modal to be sumbit
+    /* ===============================
+       MODAL
+       =============================== */
     const modal = new ModalBuilder()
       .setCustomId("whitelist_submit")
       .setTitle("Whitelist Application");

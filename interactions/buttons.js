@@ -1,7 +1,3 @@
-// Whitelist System
-// Project: Poblacion City Roleplay
-// 02.01.2026
-
 const {
   EmbedBuilder,
   ModalBuilder,
@@ -12,7 +8,9 @@ const {
 
 const config = require("../config.json");
 
-// Immune to permissions
+/* =======================================================
+   ADMIN HELPER (CACHE-SAFE + OWNER BYPASS)
+   ======================================================= */
 const isAdmin = async (interaction) => {
   // Server owner always allowed
   if (interaction.guild.ownerId === interaction.user.id) return true;
@@ -37,7 +35,9 @@ module.exports = async (interaction) => {
 
   const statusField = getField("Status");
 
-  // Vouch Button
+  /* =======================================================
+     VOUCH (TOGGLE)
+     ======================================================= */
   if (interaction.customId === "vouch") {
 
     if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
@@ -87,7 +87,9 @@ module.exports = async (interaction) => {
     });
   }
 
-  // Application Approve buttons
+  /* =======================================================
+     APPROVE (FIXED)
+     ======================================================= */
   if (interaction.customId === "approve") {
 
     if (!(await isAdmin(interaction))) {
@@ -134,30 +136,32 @@ module.exports = async (interaction) => {
     });
   }
 
-// Application deny buttons
-if (interaction.customId === "deny") {
+  /* =======================================================
+     DENY (FIXED)
+     ======================================================= */
+  if (interaction.customId === "deny") {
 
-  // Admin check
-  if (!interaction.member.roles.cache.has(config.adminRoleId)) {
-    return interaction.reply({
-      content: "❌ You do not have permission to deny.",
-      flags: 64 // ephemeral
-    });
-  }
+    if (!(await isAdmin(interaction))) {
+      return interaction.reply({
+        content: "❌ You do not have permission to deny.",
+        ephemeral: true
+      });
+    }
 
-  const modal = new ModalBuilder()
-    .setCustomId(`deny_reason_modal:${interaction.message.id}`)
-    .setTitle("Deny Application");
+    const modal = new ModalBuilder()
+      .setCustomId(`deny_reason_modal:${message.id}`)
+      .setTitle("Deny Application");
 
-  const reasonInput = new TextInputBuilder()
-    .setCustomId("deny_reason")
-    .setLabel("Reason for denial")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
+    const reasonInput = new TextInputBuilder()
+      .setCustomId("deny_reason")
+      .setLabel("Reason for denial")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
 
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(reasonInput)
-  );
-  await interaction.showModal(modal);
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(reasonInput)
+    );
+
+    return interaction.showModal(modal);
   }
 };
