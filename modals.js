@@ -36,49 +36,54 @@ if (interaction.customId === "whitelist_submit") {
 const SPACER = "\u200B";
 
 const embed = new EmbedBuilder()
-  .setTitle("📄 Whitelist Application")
-  .setDescription("Please review the application details below.")
-  .setColor(0xf59e0b) // COLOR ITO G
-
-  .addFields(
-    {
-      name: "👤 Applicant",
-      value:
-        `**User:** ${interaction.user}\n` +
-        `**Account Age:** ${accountAge}`,
-      inline: false
-    },
-
-    {
-      name: "🎭 Character Information",
-      value:
-        `**Name:** ${characterName}\n` +
-        `**Age:** ${age}`,
-      inline: false
-    },
-
-    {
-      name: "🔗 External Links",
-      value: `[Steam Profile](${steamProfile})`,
-      inline: false
-    },
-
-    {
-      name: "👥 Community Support",
-      value: "**Vouched By:** None",
-      inline: false
-    },
-
-    {
-      name: "📊 Application Status",
-      value: "⏳ **PENDING REVIEW**",
-      inline: false
-    }
-  )
-
+  .setColor(0xff8c00) // COLOR ITO G
+  .setAuthor({
+    name: "New Whitelist Application",
+    iconURL: interaction.guild.iconURL({ dynamic: true })
+  })
   .setThumbnail(
     interaction.user.displayAvatarURL({ dynamic: true, size: 256 })
   )
+
+  // Applicant Section
+  .addFields({
+    name: "👤 APPLICANT INFORMATION",
+    value:
+      `**User:** ${interaction.user}\n` +
+      `**Account Age:** ${accountAge}`,
+    inline: false
+  })
+
+  // Character Section
+  .addFields({
+    name: "🎭 CHARACTER DETAILS",
+    value:
+      `**Character Name:** ${characterName}\n` +
+      `**Character Age:** ${age}`,
+    inline: false
+  })
+
+  // Links Section
+  .addFields({
+    name: "🔗 LINKS",
+    value: `🌐 [Steam Profile](${steamProfile})`,
+    inline: false
+  })
+
+  // Status Section
+  .addFields(
+    {
+      name: "👥 VOUCHED BY",
+      value: "None",
+      inline: true
+    },
+    {
+      name: "📊 STATUS",
+      value: "🟡 **PENDING REVIEW**",
+      inline: true
+    }
+  )
+
   .setFooter({
     text: "Poblacion City Roleplay • Whitelist System"
   })
@@ -156,7 +161,7 @@ if (interaction.customId.startsWith("deny_reason_modal:")) {
     });
   }
 
-  statusField.value = "❌ Denied";
+  statusField.value = "🔴 Denied";
 
   embed.addFields(
     { name: "Denied By", value: `${interaction.user}` },
