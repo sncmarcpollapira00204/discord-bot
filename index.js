@@ -1,3 +1,5 @@
+// Made / Edited by @Maxine
+
 require("dotenv").config();
 
 const fs = require("fs");
@@ -10,27 +12,19 @@ const {
   Events
 } = require("discord.js");
 
-/* =======================================================
-   CLIENT SETUP (INTENTS FIXED)
-   ======================================================= */
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,     // ✅ REQUIRED for role checks
+    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent
   ]
 });
 
-/* =======================================================
-   INTERACTION HANDLERS
-   ======================================================= */
 const handleModals = require("./interactions/modals");
 const handleButtons = require("./interactions/buttons");
 
-/* =======================================================
-   COMMAND HANDLER
-   ======================================================= */
+
 client.commands = new Collection();
 
 const commandsPath = path.join(__dirname, "commands");
@@ -47,16 +41,12 @@ for (const file of commandFiles) {
   }
 }
 
-/* =======================================================
-   READY EVENT
-   ======================================================= */
+// SUCCESS LOGIN
 client.once(Events.ClientReady, () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
-/* =======================================================
-   INTERACTION ROUTER
-   ======================================================= */
+
 client.on(Events.InteractionCreate, async interaction => {
   try {
     if (interaction.isChatInputCommand()) {
@@ -90,7 +80,5 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-/* =======================================================
-   LOGIN
-   ======================================================= */
+// TOKEN
 client.login(process.env.TOKEN);

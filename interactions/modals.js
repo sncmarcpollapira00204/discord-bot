@@ -10,9 +10,8 @@ const config = require("../config.json");
 module.exports = async (interaction) => {
   if (!interaction.isModalSubmit()) return;
 
-/* =======================================================
-   WHITELIST SUBMIT MODAL
-   ======================================================= */
+// ========================================================================//
+
 if (interaction.customId === "whitelist_submit") {
 
   /* ---------- FORM INPUTS ---------- */
@@ -22,7 +21,7 @@ if (interaction.customId === "whitelist_submit") {
 
   const vouchedBy = "None";
 
-  /* ---------- ACCOUNT AGE ---------- */
+// Discord Account Age
   const createdAt = interaction.user.createdAt;
   const now = new Date();
 
@@ -33,44 +32,60 @@ if (interaction.customId === "whitelist_submit") {
 
   const accountAge = `${diffYears} year(s), ${diffMonths} month(s)`;
 
-  /* ---------- EMBED ---------- */
-  const SPACER = "\u200B";
+// Response Embed
+const DIVIDER = "━━━━━━━━━━━━━━━━━━━━━━";
+const SPACE = "\u200B";
 
-  const embed = new EmbedBuilder()
-    .setTitle("📄 New Whitelist Application")
-    .setColor("Orange")
+const embed = new EmbedBuilder()
+  .setColor(0xff8c00)
+  .setAuthor({
+    name: "New Whitelist Application",
+    iconURL: interaction.guild.iconURL({ dynamic: true })
+  })
+  .setThumbnail(
+    interaction.user.displayAvatarURL({ dynamic: true, size: 256 })
+  )
 
-    .addFields(
-      { name: "👤 Applicant", value: `${interaction.user}`, inline: true },
-      { name: "📌 Account Age", value: accountAge, inline: true }
-    )
+  .addFields(
+    { name: DIVIDER, value: "👤 **APPLICANT INFORMATION**" },
+    {
+      name: SPACE,
+      value:
+        `**User:** ${interaction.user}\n` +
+        `**Account Age:** ${accountAge}`
+    },
 
-    .addFields({ name: SPACER, value: SPACER })
+    { name: DIVIDER, value: "🎭 **CHARACTER DETAILS**" },
+    {
+      name: SPACE,
+      value:
+        `**Character Name:** ${characterName}\n` +
+        `**Character Age:** ${age}`
+    },
 
-    .addFields(
-      { name: "👤 Character Name", value: characterName, inline: true },
-      { name: "🎂 Age", value: age, inline: true }
-    )
+    { name: DIVIDER, value: "🔗 **LINKS**" },
+    {
+      name: SPACE,
+      value: `🌐 [Steam Profile](${steamProfile})`
+    },
 
-    .addFields({ name: SPACER, value: SPACER })
+    { name: DIVIDER, value: "📊 **STATUS**" },
+    {
+      name: SPACE,
+      value: "🟡 **PENDING REVIEW**"
+    },
 
-    .addFields({
-      name: "🔗 Steam Profile",
-      value: `[View Profile](${steamProfile})`
-    })
+    {
+      name: "👥 **VOUCHED BY**",
+      value: "None",
+      inline: false
+    }
+  )
 
-    .addFields({ name: SPACER, value: SPACER })
-
-    .addFields(
-      { name: "👥 Vouched By", value: vouchedBy, inline: true },
-      { name: "📊 Status", value: "⏳ Pending", inline: true }
-    )
-
-    .addFields({ name: SPACER, value: SPACER })
-
-    .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 256 }))
-    .setFooter({ text: "Poblacion City Roleplay" })
-    .setTimestamp();
+  .setFooter({
+    text: "Poblacion City Roleplay • Whitelist System"
+  })
+  .setTimestamp();
 
   const buttons = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -114,9 +129,7 @@ if (interaction.customId === "whitelist_submit") {
   });
 }
 
-/* =======================================================
-   DENY MODAL
-   ======================================================= */
+// ================= DENY MODAL SUBMIT =================
 if (interaction.customId.startsWith("deny_reason_modal:")) {
 
   const reason = interaction.fields.getTextInputValue("deny_reason");
@@ -129,28 +142,38 @@ if (interaction.customId.startsWith("deny_reason_modal:")) {
   if (!message || !message.embeds.length) {
     return interaction.reply({
       content: "❌ Application message not found.",
-      ephemeral: true
+      flags: 64
     });
   }
 
   const embed = EmbedBuilder.from(message.embeds[0]);
+  const fields = embed.data.fields;
 
-  const statusField = embed.data.fields.find(
-    f => f.name.includes("Status")
+  // 🔑 FIND STATUS BY VALUE (NEW EMBED STYLE)
+  const statusField = fields.find(f =>
+    f.value?.includes("PENDING") ||
+    f.value?.includes("APPROVED")
   );
 
   if (!statusField) {
     return interaction.reply({
       content: "❌ Application data corrupted.",
-      ephemeral: true
+      flags: 64
     });
   }
 
-  statusField.value = "❌ Denied";
+  // Update status
+  statusField.value = "❌ **DENIED**";
 
   embed.addFields(
-    { name: "Denied By", value: `${interaction.user}` },
-    { name: "Denial Reason", value: reason }
+    {
+      name: "❌ **DENIED BY**",
+      value: `${interaction.user}`
+    },
+    {
+      name: "📄 **DENIAL REASON**",
+      value: reason
+    }
   );
 
   await message.edit({
@@ -158,13 +181,9 @@ if (interaction.customId.startsWith("deny_reason_modal:")) {
     components: []
   });
 
-  await message.reply(
-    `❌ Application denied.\nReason: ${reason}`
-  );
-
   return interaction.reply({
     content: "❌ Application denied.",
-    ephemeral: true
+    flags: 64
   });
 }
 };

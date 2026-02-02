@@ -8,25 +8,24 @@ const {
 
 const config = require("../config.json");
 
-/* ===============================
-   COOLDOWN SETUP
-   =============================== */
+// Application Cooldown
 const cooldowns = new Map();
-const COOLDOWN_TIME = 10 * 60 * 1000; // 0 minutes
+const COOLDOWN_TIME = 1 * 0 * 0; // 10 minutes
 
 module.exports = {
   data: new SlashCommandBuilder()
     .setName("submit")
     .setDescription("Submit a whitelist application"),
 
-  async execute(interaction) {
+async execute(interaction) {
+  try {
 
-    /* ===============================
-       BLOCK CITIZENS FROM APPLYING
-       =============================== */
-    if (interaction.member.roles.cache.has(config.citizenRoleId)) {
+    /* ======================================================
+       BLOCK CITIZENS
+    ====================================================== */
+    if (interaction.member?.roles.cache.has(config.citizenRoleId)) {
       return interaction.reply({
-        content: "❌ You are already a **Citizen** and cannot submit another application.",
+        content: "❌ You are already a **CITIZEN** and cannot submit another application.",
         flags: 64
       });
     }
@@ -34,9 +33,9 @@ module.exports = {
     const userId = interaction.user.id;
     const now = Date.now();
 
-    /* ===============================
+    /* ======================================================
        COOLDOWN CHECK
-       =============================== */
+    ====================================================== */
     if (cooldowns.has(userId)) {
       const lastUsed = cooldowns.get(userId);
       const remaining = COOLDOWN_TIME - (now - lastUsed);
@@ -52,22 +51,24 @@ module.exports = {
 
     cooldowns.set(userId, now);
 
-    /* ===============================
-       MODAL
-       =============================== */
+    /* ======================================================
+       WHITELIST MODAL
+    ====================================================== */
     const modal = new ModalBuilder()
       .setCustomId("whitelist_submit")
-      .setTitle("Whitelist Application");
+      .setTitle("📄 Whitelist Application");
 
     const characterName = new TextInputBuilder()
       .setCustomId("character_name")
       .setLabel("Character Name")
+      .setPlaceholder("Firstname Lastname")
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
     const age = new TextInputBuilder()
       .setCustomId("age")
-      .setLabel("Age")
+      .setLabel("Character Age")
+      .setPlaceholder("18+")
       .setStyle(TextInputStyle.Short)
       .setRequired(true);
 
@@ -84,6 +85,18 @@ module.exports = {
       new ActionRowBuilder().addComponents(steamProfile)
     );
 
-    await interaction.showModal(modal);
+    // ✅ Showing modal COUNTS as a response
+    return await interaction.showModal(modal);
+
+  } catch (error) {
+    console.error("❌ /submit error:", error);
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: "❌ Something went wrong. Please try again.",
+        flags: 64
+      });
+    }
   }
+}
 };
