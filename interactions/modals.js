@@ -108,58 +108,44 @@ module.exports = async (interaction) => {
     });
   }
 
-  /* ===============================
-     DENY MODAL
-     =============================== */
-  if (interaction.customId.startsWith("deny_reason_modal:")) {
+    // Application Denied
+    if (interaction.customId.startsWith("deny_reason_modal:")) {
+      const reason = interaction.fields.getTextInputValue("deny_reason");
+      const messageId = interaction.customId.split(":")[1];
+      const message = await interaction.channel.messages
+        .fetch(messageId)
+        .catch(() => null);
 
-    const reason = interaction.fields.getTextInputValue("deny_reason");
-    const messageId = interaction.customId.split(":")[1];
+      if (!message || !message.embeds.length) {
+        return interaction.reply({
+          content: "❌ Application message not found.",
+          flags: 64
+        });
+      }
+      const embed = EmbedBuilder.from(message.embeds[0]);
+      const statusField = embed.data.fields.find(
+        field => field.name.includes("Status")
+      );
+      if (!statusField) {
+        return interaction.reply({
+          content: "❌ Application data corrupted.",
+          flags: 64
+        });
+      }
+      statusField.value = "❌ Denied";
+      embed.addFields(
+        { name: "Denied By", value: `${interaction.user}` },
+        { name: "Denial Reason", value: reason }
+      );
+      await message.edit({
+        embeds: [embed],
+        components: []
+      });
 
-    const message = await interaction.channel.messages
-      .fetch(messageId)
-      .catch(() => null);
-
-    if (!message || !message.embeds.length) {
+    // Admin only response
       return interaction.reply({
-        content: "❌ Application message not found.",
-        ephemeral: true
+        content: "❌ Application denied.",
+        flags: 64
       });
     }
-
-    const embed = EmbedBuilder.from(message.embeds[0]);
-
-    // Update status field
-    const statusField = embed.data.fields.find(
-      field => field.name.includes("Status")
-    );
-
-    if (!statusField) {
-      return interaction.reply({
-        content: "❌ Application data corrupted.",
-        ephemeral: true
-      });
-    }
-
-    statusField.value = "❌ Denied";
-
-    embed.addFields(
-      { name: "Denied By", value: `${interaction.user}` },
-      { name: "Denial Reason", value: reason }
-    );
-
-    await message.edit({
-      embeds: [embed],
-      components: []
-    });
-
-   // await message.reply(
-   //  `❌ Application denied.\nReason: ${reason}`
-   //);
-
-    return interaction.reply({
-      content: "❌ Your Whitelist application has been Denied.",
-      ephemeral: true
-    });
-  }
 };
