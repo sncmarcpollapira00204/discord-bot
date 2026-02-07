@@ -1,3 +1,11 @@
+/* PROJECT POBLACION - DISCORD BOT */
+
+/*========================================================
+  DISCORD WHITELISTING SYSTEM
+  ========================================================*/
+
+  /* DISCORD BUTTONS CONFIGURATION */
+
 const {
   EmbedBuilder,
   ModalBuilder,
@@ -8,189 +16,123 @@ const {
 
 const config = require("../config.json");
 
-/* ================= ADMIN CHECK ================= */
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 const isAdmin = async (interaction) => {
   if (interaction.guild.ownerId === interaction.user.id) return true;
-
   const member = await interaction.guild.members.fetch(interaction.user.id);
-  return member.roles.cache.some(role =>
-    config.adminRoleIds.includes(role.id)
+  return member.roles.cache.some(r =>
+    config.adminRoleIds.includes(r.id)
   );
 };
 
-/* ================= HELPER: GET CHARACTER NAME ================= */
+const getStatusField = (fields) =>
+  fields.find(f => f.value?.includes("PENDING") || f.value?.includes("UPDATING"));
+
 const getCharacterName = (fields) => {
-  const field = fields.find(f =>
-    f.value?.includes("Character Name:")
-  );
-
-  if (!field) return null;
-
-  return field.value
-    .split("Character Name:")[1]
-    .split("\n")[0]
-    .trim()
-    .replace(/[*_~`|]/g, "") // remove markdown symbols
-    .slice(0, 32); // Discord nickname limit
+  const f = fields.find(x => x.value?.includes("Character Name:"));
+  return f
+    ? f.value.split("Character Name:")[1]
+        .split("\n")[0]
+        .replace(/[*_~`|]/g, "")
+        .trim()
+        .slice(0, 32)
+    : null;
 };
 
-/* ================= BUTTON HANDLER ================= */
+const animateStatus = async (message, embed, statusField, finalValue) => {
+  statusField.value = "🟡 **UPDATING...**";
+  embed.setColor(0xffcc00);
+  await message.edit({ embeds: [embed] });
+
+  await sleep(1200);
+
+  statusField.value = finalValue;
+  embed.setColor(
+    finalValue.includes("APPROVED") ? 0x00ff00 : 0xff0000
+  );
+};
+
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
   const message = interaction.message;
-  if (!message.embeds.length) return;
-
   const embed = EmbedBuilder.from(message.embeds[0]);
   const fields = embed.data.fields;
 
-/* ================= FIND STATUS ================= */
-  const statusField = fields.find(f =>
-    f.value?.includes("PENDING")
-  );
+  /*  VOUCH  */
 
-/* ================= VOUCH ================= */
   if (interaction.customId === "vouch") {
-
     if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
-      return interaction.reply({
-        content: "❌ Only **Citizens** can vouch.",
-        ephemeral: true
-      });
+      return interaction.reply({ content: "❌ Citizens only.", ephemeral: true });
     }
 
-    if (!statusField) {
-      return interaction.reply({
-        content: "❌ You can only vouch while the application is pending.",
-        ephemeral: true
-      });
-    }
+    const vouchField = fields.find(f => f.name.includes("VOUCHED"));
+    if (!vouchField) return;
 
-    const vouchField = fields.find(f =>
-      f.name.toUpperCase().includes("VOUCHED")
-    );
+    const user = interaction.user.toString();
+    let vouches = vouchField.value === "None"
+      ? []
+      : vouchField.value.split(", ");
 
-    if (!vouchField) {
-      return interaction.reply({
-        content: "❌ Vouch field missing.",
-        ephemeral: true
-      });
-    }
-
-    const voucher = interaction.user.toString();
-
-    let vouches =
-      vouchField.value === "None"
-        ? []
-        : vouchField.value.split(", ").filter(Boolean);
-
-    if (vouches.includes(voucher)) {
-      vouches = vouches.filter(v => v !== voucher);
-    } else {
-      vouches.push(voucher);
-    }
+    vouches.includes(user)
+      ? vouches = vouches.filter(v => v !== user)
+      : vouches.push(user);
 
     vouchField.value = vouches.length ? vouches.join(", ") : "None";
 
     await message.edit({ embeds: [embed] });
-
-    return interaction.reply({
-      content: "🖐️ Vouch updated.",
-      ephemeral: true
-    });
+    return interaction.reply({ content: "🖐️ Vouch updated.", ephemeral: true });
   }
 
-/* ================= APPROVE ================= */
-if (interaction.customId === "approve") {
+  /*  APPROVE  */
 
-  if (!(await isAdmin(interaction))) {
-    return interaction.reply({
-      content: "❌ You do not have permission to approve.",
-      ephemeral: true
+  if (interaction.customId === "approve") {
+    if (!(await isAdmin(interaction))) {
+      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+    }
+
+    const statusField = getStatusField(fields);
+    const userField = fields.find(f => f.value?.includes("User:"));
+    const charName = getCharacterName(fields);
+
+    await animateStatus(message, embed, statusField, "✅ **APPROVED**");
+
+    embed.addFields({
+      name: "✅ **APPROVED BY**",
+      value: `${interaction.user}`
     });
+
+    await message.edit({ embeds: [embed], components: [] });
+
+    const userId = userField.value.match(/\d+/)?.[0];
+    const member = await interaction.guild.members.fetch(userId);
+    await member.roles.add(config.citizenRoleId).catch(() => {});
+    await member.setNickname(charName).catch(() => {});
+
+    return interaction.reply({ content: "✅ Application approved.", ephemeral: true });
   }
 
-  // Find fields
-  const userField = fields.find(f =>
-    f.value?.includes("User:")
-  );
+  /*  DENY  */
 
-  const statusField = fields.find(f =>
-    f.value?.includes("PENDING")
-  );
+  if (interaction.customId === "deny") {
+    if (!(await isAdmin(interaction))) {
+      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+    }
 
-  if (!userField || !statusField) {
-    return interaction.reply({
-      content: "❌ Application data corrupted.",
-      ephemeral: true
-    });
+    const modal = new ModalBuilder()
+      .setCustomId(`deny_reason:${message.id}`)
+      .setTitle("Deny Application")
+      .addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder()
+            .setCustomId("reason")
+            .setLabel("Reason")
+            .setStyle(TextInputStyle.Paragraph)
+            .setRequired(true)
+        )
+      );
+
+    return interaction.showModal(modal);
   }
-
-  // Get character name
-  const characterName = getCharacterName(fields);
-  if (!characterName) {
-    return interaction.reply({
-      content: "❌ Character name not found.",
-      ephemeral: true
-    });
-  }
-
-  // Update embed FIRST
-  statusField.value = "✅ **APPROVED**";
-
-  embed.addFields({
-    name: "✅ **APPROVED BY**",
-    value: `${interaction.user}`
-  });
-
-  await message.edit({
-    embeds: [embed],
-    components: []
-  });
-
-  // Extract user ID
-  const userId = userField.value.match(/\d+/)?.[0];
-  if (!userId) return;
-
-  // ✅ FETCH MEMBER FIRST
-  const member = await interaction.guild.members.fetch(userId);
-
-  // ✅ THEN USE IT
-  await member.roles.add(config.citizenRoleId);
-  await member.setNickname(characterName).catch(() => {});
-
-  return interaction.reply({
-    content: `✅ Application approved.\nNickname set to **${characterName}**`,
-    ephemeral: true
-  });
-}
-
-/* ================= DENY ================= */
-if (interaction.customId === "deny") {
-
-  if (!(await isAdmin(interaction))) {
-    return interaction.reply({
-      content: "❌ You do not have permission to deny.",
-      flags: 64
-    });
-  }
-
-  const modal = new ModalBuilder()
-    .setCustomId(`deny_reason_modal:${message.id}`)
-    .setTitle("Deny Application");
-
-  const reasonInput = new TextInputBuilder()
-    .setCustomId("deny_reason")
-    .setLabel("Reason for denial")
-    .setStyle(TextInputStyle.Paragraph)
-    .setRequired(true);
-
-  modal.addComponents(
-    new ActionRowBuilder().addComponents(reasonInput)
-  );
-
-  // 🔑 THIS MUST BE THE ONLY RESPONSE
-  return interaction.showModal(modal);
-}
-
 };
