@@ -6,133 +6,207 @@
 
   /* DISCORD BUTTONS CONFIGURATION */
 
-const {
-  EmbedBuilder,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder
-} = require("discord.js");
+  const {
+    EmbedBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
+    ActionRowBuilder
+  } = require("discord.js");
 
 const config = require("../config.json");
 
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+/* PERMISSION CHECK FOR ADMINS / OWNERS */
 
 const isAdmin = async (interaction) => {
   if (interaction.guild.ownerId === interaction.user.id) return true;
+
   const member = await interaction.guild.members.fetch(interaction.user.id);
-  return member.roles.cache.some(r =>
-    config.adminRoleIds.includes(r.id)
+  return member.roles.cache.some(role =>
+    config.adminRoleIds.includes(role.id)
   );
 };
 
-const getStatusField = (fields) =>
-  fields.find(f => f.value?.includes("PENDING") || f.value?.includes("UPDATING"));
+/* GET CHARACTER NAME AFTER SUBMITTING FORMS */
 
 const getCharacterName = (fields) => {
-  const f = fields.find(x => x.value?.includes("Character Name:"));
-  return f
-    ? f.value.split("Character Name:")[1]
-        .split("\n")[0]
-        .replace(/[*_~`|]/g, "")
-        .trim()
-        .slice(0, 32)
-    : null;
-};
-
-const animateStatus = async (message, embed, statusField, finalValue) => {
-  statusField.value = "🟡 **UPDATING...**";
-  embed.setColor(0xffcc00);
-  await message.edit({ embeds: [embed] });
-
-  await sleep(1200);
-
-  statusField.value = finalValue;
-  embed.setColor(
-    finalValue.includes("APPROVED") ? 0x00ff00 : 0xff0000
+  const field = fields.find(f =>
+    f.value?.includes("Character Name:")
   );
+
+  if (!field) return null;
+
+  return field.value
+    .split("Character Name:")[1]
+    .split("\n")[0]
+    .trim()
+    .replace(/[*_~`|]/g, "") // REMOVE SYMBOLS
+    .slice(0, 32); // NICKNAME LIMIT
 };
+
+/* BUTTONS HANDLER */
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
   const message = interaction.message;
+  if (!message.embeds.length) return;
+
   const embed = EmbedBuilder.from(message.embeds[0]);
   const fields = embed.data.fields;
 
-  /*  VOUCH  */
+/* STATUS CHECKER */
 
-  if (interaction.customId === "vouch") {
-    if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
-      return interaction.reply({ content: "❌ Citizens only.", ephemeral: true });
+const statusField = fields.find(f =>
+  f.value?.includes("PENDING")
+);
+
+/* VOUCH - BUTTONS CONFIG */
+  
+    if (interaction.customId === "vouch") {
+
+      // role check
+      if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
+        return interaction.reply({ content: "❌ Only **Citizens** can vouch.", flags: 64 });
+      }
+
+      // status check
+      if (!statusField) {
+        return interaction.reply({ content: "❌ Application is not pending.", flags: 64 });
+      }
+
+      // applicant ID
+      const userField = fields.find(f => f.value?.includes("Discord User:"));
+      const applicantId = userField?.value.match(/\d+/)?.[0];
+
+      if (!applicantId) {
+        return interaction.reply({ content: "❌ Applicant not found.", flags: 64 });
+      }
+
+      // ❌ self-vouch protection
+      if (interaction.user.id === applicantId) {
+        return interaction.reply({
+          content: "❌ You cannot vouch for your own application.",
+          flags: 64
+        });
+      }
+
+      // vouch field
+      const vouchField = fields.find(f =>
+        f.name.toUpperCase().includes("VOUCHED")
+      );
+
+      if (!vouchField) {
+        return interaction.reply({
+          content: "❌ Vouch data missing.",
+          flags: 64
+        });
+      }
+
+      let vouches = vouchField.value === "None"
+        ? []
+        : vouchField.value.split(", ").filter(Boolean);
+
+      const voucher = interaction.user.toString();
+
+      vouches.includes(voucher)
+        ? vouches = vouches.filter(v => v !== voucher)
+        : vouches.push(voucher);
+
+      vouchField.value = vouches.length ? vouches.join(", ") : "None";
+
+      await message.edit({ embeds: [embed] });
+
+      return interaction.reply({
+        content: "🖐️ Vouch updated.",
+        flags: 64
+      });
+
     }
 
-    const vouchField = fields.find(f => f.name.includes("VOUCHED"));
-    if (!vouchField) return;
-
-    const user = interaction.user.toString();
-    let vouches = vouchField.value === "None"
-      ? []
-      : vouchField.value.split(", ");
-
-    vouches.includes(user)
-      ? vouches = vouches.filter(v => v !== user)
-      : vouches.push(user);
-
-    vouchField.value = vouches.length ? vouches.join(", ") : "None";
-
-    await message.edit({ embeds: [embed] });
-    return interaction.reply({ content: "🖐️ Vouch updated.", ephemeral: true });
-  }
-
-  /*  APPROVE  */
+  /* APPROVE - BUTTONS CONFIG */
 
   if (interaction.customId === "approve") {
+
     if (!(await isAdmin(interaction))) {
-      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ You do not have permission to approve.",
+        flags: 64
+      });
     }
 
-    const statusField = getStatusField(fields);
-    const userField = fields.find(f => f.value?.includes("User:"));
-    const charName = getCharacterName(fields);
+    const userField = fields.find(f =>
+      f.value?.includes("Discord User:")
+    );
 
-    await animateStatus(message, embed, statusField, "✅ **APPROVED**");
+    if (!userField || !statusField) {
+      return interaction.reply({
+        content: "❌ Application data corrupted.",
+        flags: 64
+      });
+    }
+
+    const characterName = getCharacterName(fields);
+    if (!characterName) {
+      return interaction.reply({
+        content: "❌ Character name not found.",
+        flags: 64
+      });
+    }
+
+    statusField.value = "✅ **APPROVED**";
 
     embed.addFields({
       name: "✅ **APPROVED BY**",
       value: `${interaction.user}`
     });
 
-    await message.edit({ embeds: [embed], components: [] });
+    await message.edit({
+      embeds: [embed],
+      components: []
+    });
 
     const userId = userField.value.match(/\d+/)?.[0];
-    const member = await interaction.guild.members.fetch(userId);
-    await member.roles.add(config.citizenRoleId).catch(() => {});
-    await member.setNickname(charName).catch(() => {});
+    if (!userId) return;
 
-    return interaction.reply({ content: "✅ Application approved.", ephemeral: true });
+    const member = await interaction.guild.members.fetch(userId);
+
+    await member.roles.add(config.citizenRoleId).catch(() => {});
+    await member.setNickname(characterName).catch(() => {});
+
+    return interaction.reply({
+      content: `✅ Application approved.\nNickname set to **${characterName}**`,
+      flags: 64
+    });
   }
 
-  /*  DENY  */
+/* DENY - BUTTONS CONFIG */
 
   if (interaction.customId === "deny") {
+
     if (!(await isAdmin(interaction))) {
-      return interaction.reply({ content: "❌ No permission.", ephemeral: true });
+      return interaction.reply({
+        content: "❌ You do not have permission to deny.",
+        flags: 64
+      });
     }
 
     const modal = new ModalBuilder()
-      .setCustomId(`deny_reason:${message.id}`)
-      .setTitle("Deny Application")
-      .addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder()
-            .setCustomId("reason")
-            .setLabel("Reason")
-            .setStyle(TextInputStyle.Paragraph)
-            .setRequired(true)
-        )
-      );
+      .setCustomId(`deny_reason_modal:${message.id}`)
+      .setTitle("Deny Application");
 
+    const reasonInput = new TextInputBuilder()
+      .setCustomId("deny_reason")
+      .setLabel("Reason for denial")
+      .setStyle(TextInputStyle.Paragraph)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(reasonInput)
+    );
+
+    // ONLY RESPONSE
+    
     return interaction.showModal(modal);
   }
 };
