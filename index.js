@@ -21,6 +21,9 @@ const client = new Client({
   ]
 });
 
+process.on("unhandledRejection", console.error);
+process.on("uncaughtException", console.error);
+
 const handleModals = require("./interactions/modals");
 const handleButtons = require("./interactions/buttons");
 

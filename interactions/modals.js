@@ -13,7 +13,10 @@ const {
   ButtonStyle
 } = require("discord.js");
 
-const config = require("../config.json");
+  const config = require("../config.json");
+  const cooldowns = new Map();
+  const COOLDOWN_TIME = 1 * 60 * 1000; // 1 minute
+
 
 module.exports = async (interaction) => {
   if (!interaction.isModalSubmit()) return;
@@ -39,6 +42,13 @@ module.exports = async (interaction) => {
         });
       }*/
 
+      if (isNaN(age)) {
+      return interaction.reply({
+          content: "❌ Character age must be a number.",
+           flags: 64
+       });
+      }
+
       // Steam profile link check
       if (
         !steamProfile.startsWith("https://steamcommunity.com/id/") &&
@@ -50,13 +60,19 @@ module.exports = async (interaction) => {
         });
       }
 
+      // ✅ START COOLDOWN AFTER SUCCESSFUL SUBMIT
+      const userId = interaction.user.id;
+      const now = Date.now();
+
+      cooldowns.set(userId, now);
+      setTimeout(() => cooldowns.delete(userId), COOLDOWN_TIME);
 
     /* DISCORD ACCOUNT AGE ON EMBED */
 
     const createdAt = interaction.user.createdAt;
-    const now = new Date();
+    const currentDate = new Date();
 
-    const diffMs = now - createdAt;
+    const diffMs = currentDate - createdAt;
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const diffYears = Math.floor(diffDays / 365);
     const diffMonths = Math.floor((diffDays % 365) / 30);
@@ -175,9 +191,11 @@ module.exports = async (interaction) => {
     const reason = interaction.fields.getTextInputValue("deny_reason");
     const messageId = interaction.customId.split(":")[1];
 
-    const message = await interaction.channel.messages
-      .fetch(messageId)
-      .catch(() => null);
+    const channel = interaction.client.channels.cache.get(config.whitelistChannelId);
+    if (!channel) return;
+
+    const message = await channel.messages.fetch(messageId).catch(() => null);
+
 
     if (!message || !message.embeds.length) {
       return interaction.reply({
@@ -192,13 +210,13 @@ module.exports = async (interaction) => {
     /* STATUS FIELD CHECK */
 
     const statusField = fields.find(field =>
-      field.value?.includes("PENDING") ||
-      field.value?.includes("APPROVED")
+      field.value?.includes("PENDING REVIEW")
     );
 
-    if (!statusField) {
+    // Deny if not pending
+    if (!statusField || !statusField.value.includes("PENDING REVIEW")) {
       return interaction.reply({
-        content: "❌ Application data corrupted.",
+        content: "❌ This application can no longer be denied.",
         flags: 64
       });
     }
@@ -207,16 +225,18 @@ module.exports = async (interaction) => {
 
     statusField.value = "❌ **DENIED**";
 
-    embed.addFields(
-      {
-        name: "❌ **DENIED BY**",
-        value: `${interaction.user}`
-      },
-      {
-        name: "📄 **DENIAL REASON**",
-        value: reason
-      }
-    );
+    if (!fields.some(f => f.name.includes("DENIED BY"))) {
+      embed.addFields(
+        {
+          name: "❌ **DENIED BY**",
+          value: `${interaction.user}`
+        },
+        {
+          name: "📄 **DENIAL REASON**",
+          value: reason
+        }
+      );
+    }
 
     await message.edit({
       embeds: [embed],

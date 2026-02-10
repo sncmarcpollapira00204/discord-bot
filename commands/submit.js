@@ -58,9 +58,6 @@ module.exports = {
         }
       }
 
-      // COMMAND COOLDOWN SET
-      cooldowns.set(userId, now);
-
       //////* WHITELIST APPLICATION FORM *//////
 
       const modal = new ModalBuilder()
@@ -93,11 +90,11 @@ module.exports = {
         new ActionRowBuilder().addComponents(age),
         new ActionRowBuilder().addComponents(steamProfile)
       );
-
-      /* SUBMIT ERRORS */
-
+      
+      // Show the modal to the user
       await interaction.showModal(modal);
-
+    
+      /// SUBMIT ERRORS
     } catch (error) {
       console.error("❌ /submit error:", error);
 

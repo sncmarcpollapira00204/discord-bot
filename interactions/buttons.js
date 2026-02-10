@@ -6,18 +6,20 @@
 
   /* DISCORD BUTTONS CONFIGURATION */
 
-  const {
-    EmbedBuilder,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
-    ActionRowBuilder
-  } = require("discord.js");
+    const {
+      EmbedBuilder,
+      ModalBuilder,
+      TextInputBuilder,
+      TextInputStyle,
+      ActionRowBuilder
+    } = require("discord.js");
+
 
 const config = require("../config.json");
 
 /* PERMISSION CHECK FOR ADMINS / OWNERS */
 
+// ELSE JUST APPROVE WITHOUT SETTING NICKNAME
 const isAdmin = async (interaction) => {
   if (interaction.guild.ownerId === interaction.user.id) return true;
 
@@ -49,17 +51,62 @@ const getCharacterName = (fields) => {
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
 
+    // 📄 OPEN WHITELIST APPLICATION MODAL
+  if (interaction.customId === "open_whitelist_modal") {
+
+    // ❌ Block citizens
+    if (interaction.member.roles.cache.has(config.citizenRoleId)) {
+      return interaction.reply({
+        content: "❌ You are already a **CITIZEN**.",
+        flags: 64
+      });
+    }
+
+    const modal = new ModalBuilder()
+      .setCustomId("whitelist_submit")
+      .setTitle("📄 Whitelist Application");
+
+    const characterName = new TextInputBuilder()
+      .setCustomId("character_name")
+      .setLabel("Character Name")
+      .setPlaceholder("Firstname Lastname")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const age = new TextInputBuilder()
+      .setCustomId("age")
+      .setLabel("Character Age")
+      .setPlaceholder("18+")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    const steamProfile = new TextInputBuilder()
+      .setCustomId("steam_profile")
+      .setLabel("Steam Profile URL")
+      .setPlaceholder("https://steamcommunity.com/id/yourname")
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(characterName),
+      new ActionRowBuilder().addComponents(age),
+      new ActionRowBuilder().addComponents(steamProfile)
+    );
+
+    return interaction.showModal(modal);
+  }
+
   const message = interaction.message;
   if (!message.embeds.length) return;
 
   const embed = EmbedBuilder.from(message.embeds[0]);
   const fields = embed.data.fields;
 
-/* STATUS CHECKER */
+    /* STATUS CHECKER */
 
-const statusField = fields.find(f =>
-  f.value?.includes("PENDING")
-);
+    const statusField = fields.find(f =>
+      f.name === "\u200B" && f.value.includes("PENDING REVIEW")
+    );
 
 /* VOUCH - BUTTONS CONFIG */
   
@@ -67,12 +114,18 @@ const statusField = fields.find(f =>
 
       // role check
       if (!interaction.member.roles.cache.has(config.citizenRoleId)) {
-        return interaction.reply({ content: "❌ Only **Citizens** can vouch.", flags: 64 });
+        return interaction.reply({
+          content: "❌ Only **Citizens** can vouch.",
+          flags: 64
+        });
       }
 
       // status check
       if (!statusField) {
-        return interaction.reply({ content: "❌ Application is not pending.", flags: 64 });
+        return interaction.reply({
+          content: "❌ Application is not pending.",
+          flags: 64
+        });
       }
 
       // applicant ID
@@ -80,7 +133,10 @@ const statusField = fields.find(f =>
       const applicantId = userField?.value.match(/\d+/)?.[0];
 
       if (!applicantId) {
-        return interaction.reply({ content: "❌ Applicant not found.", flags: 64 });
+        return interaction.reply({
+          content: "❌ Applicant not found.",
+          flags: 64
+        });
       }
 
       // ❌ self-vouch protection
@@ -93,7 +149,7 @@ const statusField = fields.find(f =>
 
       // vouch field
       const vouchField = fields.find(f =>
-        f.name.toUpperCase().includes("VOUCHED")
+        f.name.toUpperCase().includes("VOUCHED BY")
       );
 
       if (!vouchField) {
@@ -103,15 +159,27 @@ const statusField = fields.find(f =>
         });
       }
 
-      let vouches = vouchField.value === "None"
+      // ✅ DEFINE vouches FIRST (FIX)
+      let vouches = vouchField.value.trim().toLowerCase() === "none"
         ? []
         : vouchField.value.split(", ").filter(Boolean);
 
       const voucher = interaction.user.toString();
 
-      vouches.includes(voucher)
-        ? vouches = vouches.filter(v => v !== voucher)
-        : vouches.push(voucher);
+      // ✅ max vouch limit
+      if (vouches.length >= 5 && !vouches.includes(voucher)) {
+        return interaction.reply({
+          content: "❌ Maximum vouches reached.",
+          flags: 64
+        });
+      }
+
+      // toggle vouch
+      if (vouches.includes(voucher)) {
+        vouches = vouches.filter(v => v !== voucher);
+      } else {
+        vouches.push(voucher);
+      }
 
       vouchField.value = vouches.length ? vouches.join(", ") : "None";
 
@@ -121,7 +189,6 @@ const statusField = fields.find(f =>
         content: "🖐️ Vouch updated.",
         flags: 64
       });
-
     }
 
   /* APPROVE - BUTTONS CONFIG */
@@ -146,6 +213,14 @@ const statusField = fields.find(f =>
       });
     }
 
+      // 🔒 PREVENT DOUBLE APPROVE
+    if (!statusField.value.includes("PENDING")) {
+      return interaction.reply({
+        content: "❌ This application was already handled.",
+        flags: 64
+      });
+   }
+
     const characterName = getCharacterName(fields);
     if (!characterName) {
       return interaction.reply({
@@ -156,11 +231,13 @@ const statusField = fields.find(f =>
 
     statusField.value = "✅ **APPROVED**";
 
-    embed.addFields({
-      name: "✅ **APPROVED BY**",
-      value: `${interaction.user}`
-    });
-
+    if (!fields.some(f => f.name.includes("APPROVED BY"))) {
+      embed.addFields({
+        name: "✅ **APPROVED BY**",
+        value: `${interaction.user}`
+      });
+    }
+    
     await message.edit({
       embeds: [embed],
       components: []
@@ -170,15 +247,31 @@ const statusField = fields.find(f =>
     if (!userId) return;
 
     const member = await interaction.guild.members.fetch(userId);
-
+    
+    // Add citizen role
     await member.roles.add(config.citizenRoleId).catch(() => {});
-    await member.setNickname(characterName).catch(() => {});
+    
+    // Track nickname result
+    let nicknameSet = false;
 
+    // Set nickname to character name if possible
+    if (characterName.length > 0) {
+      try {
+        await member.setNickname(characterName);
+        nicknameSet = true;
+      } catch (err) {
+        console.error("Nickname error:", err);
+      }
+    }
+
+    // Response message with nickname info
     return interaction.reply({
-      content: `✅ Application approved.\nNickname set to **${characterName}**`,
+      content: nicknameSet
+        ? `✅ Application approved.\nNickname set to **${characterName}**`
+        : `✅ Application approved.\n⚠️ Nickname could not be set.`,
       flags: 64
     });
-  }
+      }
 
 /* DENY - BUTTONS CONFIG */
 
@@ -190,6 +283,14 @@ const statusField = fields.find(f =>
         flags: 64
       });
     }
+
+      // 🔒 PREVENT DOUBLE DENY
+    if (!statusField || !statusField.value.includes("PENDING")) {
+      return interaction.reply({
+        content: "❌ This application was already handled.",
+        flags: 64
+     });
+   }
 
     const modal = new ModalBuilder()
       .setCustomId(`deny_reason_modal:${message.id}`)
