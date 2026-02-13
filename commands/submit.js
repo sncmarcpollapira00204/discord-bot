@@ -16,9 +16,10 @@
 
 const config = require("../config.json");
 
-    /* COOLDOWN CONFIGURATION */
-    const cooldowns = require("../utils/cooldownManager");
-    const COOLDOWN_TIME = 1 * 60 * 1000; // 1 MINUTE(S) COOLDOWN
+/* COOLDOWN CONFIGURATION */
+
+const cooldowns = new Map();
+const COOLDOWN_TIME = 1 * 60 * 1000; // 1 MINUTE(S) COOLDOWN
 
 /* COMMANDS */
 

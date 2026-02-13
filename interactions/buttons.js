@@ -48,19 +48,7 @@ const getCharacterName = (fields) => {
 
 /* BUTTONS HANDLER */
 
-
-
-
 module.exports = async (interaction) => {
-
-  // Ignore role system buttons
-if (
-  interaction.customId.startsWith("role_") ||
-  interaction.customId === "open_role_request_modal"
-) {
-  return;
-}
-
   if (!interaction.isButton()) return;
 
     // 📄 OPEN WHITELIST APPLICATION MODAL
@@ -113,18 +101,6 @@ if (
 
   const embed = EmbedBuilder.from(message.embeds[0]);
   const fields = embed.data.fields;
-
-  // 🔧 FIX: Normalize Discord User mention (prevents raw ID display)
-  const userField = fields.find(f =>
-    f.value?.includes("Discord User:")
-  );
-
-  if (userField) {
-    const userIdMatch = userField.value.match(/\d+/);
-    if (userIdMatch) {
-      userField.value = `**Discord User:** <@${userIdMatch[0]}>`;
-    }
-  }
 
     /* STATUS CHECKER */
 
@@ -191,7 +167,7 @@ if (
       const voucher = interaction.user.toString();
 
       // ✅ max vouch limit
-      if (  vouches.length >= config.maxVouches && !vouches.includes(voucher) )  {
+      if (vouches.length >= 5 && !vouches.includes(voucher)) {
         return interaction.reply({
           content: "❌ Maximum vouches reached.",
           flags: 64
@@ -273,9 +249,8 @@ if (
     const member = await interaction.guild.members.fetch(userId);
     
     // Add citizen role
-    try {await member.roles.add(config.citizenRoleId); // ADD ROLE
-    } catch (err) { console.error("❌ Role add error:", err);} // ADD ROLE ERROR HANDLING
-   
+    await member.roles.add(config.citizenRoleId).catch(() => {});
+    
     // Track nickname result
     let nicknameSet = false;
 

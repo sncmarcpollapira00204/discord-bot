@@ -14,7 +14,7 @@ const {
 } = require("discord.js");
 
   const config = require("../config.json");
-  const cooldowns = require("../utils/cooldownManager");
+  const cooldowns = new Map();
   const COOLDOWN_TIME = 1 * 60 * 1000; // 1 minute
 
 
@@ -100,9 +100,8 @@ module.exports = async (interaction) => {
         {
           name: SPACE,
           value:
-              `**Discord User:** <@${interaction.user.id}>\n` +
-              `**Account Age:** ${accountAge}`
-
+            `**Discord User:** ${interaction.user}\n` +
+            `**Account Age:** ${accountAge}`
         },
 
         { name: SPACE, value: "🎭 **CHARACTER DETAILS:**" },
