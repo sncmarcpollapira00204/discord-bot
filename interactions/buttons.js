@@ -50,6 +50,18 @@ const getCharacterName = (fields) => {
 
 module.exports = async (interaction) => {
   if (!interaction.isButton()) return;
+  
+  // ONLY HANDLE WHITELIST BUTTONS
+const whitelistButtons = [
+  "open_whitelist_modal",
+  "vouch",
+  "approve",
+  "deny"
+];
+
+if (!whitelistButtons.includes(interaction.customId)) {
+  return;
+}
 
     // 📄 OPEN WHITELIST APPLICATION MODAL
   if (interaction.customId === "open_whitelist_modal") {

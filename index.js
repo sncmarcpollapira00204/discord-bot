@@ -24,9 +24,24 @@ const client = new Client({
 process.on("unhandledRejection", console.error);
 process.on("uncaughtException", console.error);
 
-const handleModals = require("./interactions/modals");
-const handleButtons = require("./interactions/buttons");
+/* ===============================
+   LOAD BUTTON & MODAL HANDLERS
+   (FLAT STRUCTURE)
+   =============================== */
 
+const buttonHandlers = [
+  require("./interactions/buttons"),
+  require("./interactions/nameChangeButtons")
+];
+
+const modalHandlers = [
+  require("./interactions/modals"),
+  require("./interactions/nameChangeModals")
+];
+
+/* ===============================
+   SLASH COMMANDS
+   =============================== */
 
 client.commands = new Collection();
 
@@ -44,28 +59,42 @@ for (const file of commandFiles) {
   }
 }
 
-// SUCCESS LOGIN
+/* ===============================
+   READY
+   =============================== */
+
 client.once(Events.ClientReady, () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
 });
 
+/* ===============================
+   INTERACTION HANDLER
+   =============================== */
 
 client.on(Events.InteractionCreate, async interaction => {
   try {
+
+    // SLASH COMMANDS
     if (interaction.isChatInputCommand()) {
       const command = client.commands.get(interaction.commandName);
       if (!command) return;
-
       await command.execute(interaction);
     }
 
-    if (interaction.isModalSubmit()) {
-      await handleModals(interaction);
+    // BUTTONS
+    if (interaction.isButton()) {
+      for (const handler of buttonHandlers) {
+        await handler(interaction);
+      }
     }
 
-    if (interaction.isButton()) {
-      await handleButtons(interaction);
+    // MODALS
+    if (interaction.isModalSubmit()) {
+      for (const handler of modalHandlers) {
+        await handler(interaction);
+      }
     }
+
   } catch (error) {
     console.error("❌ Interaction error:", error);
 
@@ -83,5 +112,8 @@ client.on(Events.InteractionCreate, async interaction => {
   }
 });
 
-// TOKEN
+/* ===============================
+   LOGIN
+   =============================== */
+
 client.login(process.env.TOKEN);
