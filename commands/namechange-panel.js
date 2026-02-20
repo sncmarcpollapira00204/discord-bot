@@ -59,10 +59,19 @@ module.exports = {
         .setStyle(ButtonStyle.Primary)
     );
 
-    await interaction.channel.send({
-      embeds: [embed],
-      components: [row]
-    });
+      try {
+        await interaction.channel.send({
+          embeds: [embed],
+          components: [row]
+        });
+      } catch (err) {
+        console.error("❌ Failed to send panel:", err);
+
+        return interaction.reply({
+          content: "❌ Bot cannot send messages in this channel. Please check permissions.",
+          flags: 64
+        });
+      }
 
     return interaction.reply({
       content: "✅ Name change panel sent.",
