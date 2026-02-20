@@ -54,9 +54,9 @@ module.exports = async (interaction) => {
   });
 
   // ✅ FETCH CHANNEL SAFELY (NO CACHE)
-  const channel = await interaction.client.channels.fetch(
-    config.whitelistChannelId
-  ).catch(() => null);
+    const channel = await interaction.client.channels.fetch(
+      config.nameChangeChannelId
+    ).catch(() => null);
 
   if (!channel) return;
 
