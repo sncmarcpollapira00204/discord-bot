@@ -100,7 +100,7 @@ module.exports = async (interaction) => {
         {
           name: SPACE,
           value:
-            `**Discord User:** ${displayName} (<@${interaction.user.id}>)\n` +
+            `**Discord User:** <@${interaction.user.id}>\n` +
             `**Account Age:** ${accountAge}`
         },
 
